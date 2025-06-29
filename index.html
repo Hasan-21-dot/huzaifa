@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8">
+  <title>বাজার খরচ হিসাব - Firebase</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #f4f6f8;
+      padding: 20px;
+      max-width: 900px;
+      margin: auto;
+    }
+    h2 {
+      text-align: center;
+      color: #2c3e50;
+    }
+    input, button {
+      padding: 8px;
+      margin: 5px;
+      font-size: 16px;
+    }
+    .btn {
+      border: none;
+      border-radius: 4px;
+      color: white;
+      cursor: pointer;
+    }
+    .btn-add { background-color: #27ae60; }
+    .btn-edit { background-color: #f39c12; }
+    .btn-delete { background-color: #e74c3c; }
+    .btn-filter { background-color: #2980b9; }
+    table {
+      width: 100%;
+      margin-top: 20px;
+      border-collapse: collapse;
+      background: white;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 10px;
+      text-align: center;
+    }
+    tfoot td {
+      font-weight: bold;
+      background-color: #ecf0f1;
+    }
+  </style>
+</head>
+<body>
+  <h2>📊 বাজার খরচ হিসাব - Firebase</h2>
+
+  <div>
+    <input type="date" id="date">
+    <input type="text" id="item" placeholder="পণ্যের নাম">
+    <input type="number" id="amount" placeholder="টাকার পরিমাণ">
+    <button class="btn btn-add" onclick="addOrUpdateEntry()" id="addBtn">✅ সংরক্ষণ</button>
+  </div>
+
+  <div>
+    🔎 <input type="date" id="filterDate">
+    <button class="btn btn-filter" onclick="filterByDate()">তারিখ অনুযায়ী দেখুন</button>
+    <button class="btn btn-filter" onclick="loadAll()">সব দেখুন</button>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>তারিখ</th>
+        <th>পণ্য</th>
+        <th>পরিমাণ (৳)</th>
+        <th>অ্যাকশন</th>
+      </tr>
+    </thead>
+    <tbody id="expenseTable"></tbody>
+    <tfoot>
+      <tr>
+        <td colspan="2">মোট</td>
+        <td id="totalAmount">0</td>
+        <td></td>
+      </tr>
+    </tfoot>
+  </table>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBQNkp7FHh8dYLzqDJIPt0WJmsDGokOlJI",
+      authDomain: "tamim-85bb4.firebaseapp.com",
+      databaseURL: "https://tamim-85bb4-default-rtdb.firebaseio.com",
+      projectId: "tamim-85bb4",
+      storageBucket: "tamim-85bb4.appspot.com",
+      messagingSenderId: "395832782894",
+      appId: "1:395832782894:web:435faeb8fc9427fd9aafbf"
+    };
+
+    const app = firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const ref = db.ref("expenses");
+
+    let editKey = null;
+
+    function addOrUpdateEntry() {
+      const date = document.getElementById("date").value;
+      const item = document.getElementById("item").value;
+      const amount = document.getElementById("amount").value;
+
+      if (!date || !item || !amount) return;
+
+      const data = { date, item, amount };
+
+      if (editKey) {
+        db.ref("expenses/" + editKey).set(data);
+        editKey = null;
+        document.getElementById("addBtn").innerText = "✅ সংরক্ষণ";
+      } else {
+        ref.push(data);
+      }
+
+      document.getElementById("date").value = "";
+      document.getElementById("item").value = "";
+      document.getElementById("amount").value = "";
+    }
+
+    function loadAll() {
+      ref.once("value", snapshot => {
+        renderTable(snapshot);
+      });
+    }
+
+    function filterByDate() {
+      const selectedDate = document.getElementById("filterDate").value;
+      if (!selectedDate) return;
+      ref.orderByChild("date").equalTo(selectedDate).once("value", snapshot => {
+        renderTable(snapshot);
+      });
+    }
+
+    function renderTable(snapshot) {
+      const tbody = document.getElementById("expenseTable");
+      const totalAmount = document.getElementById("totalAmount");
+      tbody.innerHTML = "";
+      let total = 0;
+
+      snapshot.forEach(child => {
+        const data = child.val();
+        const key = child.key;
+
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${data.date}</td>
+          <td>${data.item}</td>
+          <td>${data.amount}</td>
+          <td>
+            <button class="btn btn-edit" onclick="editEntry('${key}', '${data.date}', '${data.item}', '${data.amount}')">✏️</button>
+            <button class="btn btn-delete" onclick="deleteEntry('${key}')">🗑️</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+        total += parseFloat(data.amount);
+      });
+
+      totalAmount.innerText = total.toFixed(2);
+    }
+
+    function editEntry(key, date, item, amount) {
+      document.getElementById("date").value = date;
+      document.getElementById("item").value = item;
+      document.getElementById("amount").value = amount;
+      document.getElementById("addBtn").innerText = "✏️ আপডেট করুন";
+      editKey = key;
+    }
+
+    function deleteEntry(key) {
+      if (confirm("আপনি কি মুছে ফেলতে চান?")) {
+        db.ref("expenses/" + key).remove();
+      }
+    }
+
+    // Initial load
+    loadAll();
+  </script>
+</body>
+</html>
